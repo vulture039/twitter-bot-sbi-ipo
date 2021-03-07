@@ -1,11 +1,3 @@
-# https://note.nkmk.me/python-beautiful-soup-scraping-yahoo/
-# https://qiita.com/go_honn/items/ec96c2246229e4ee2ea6
-# https://qiita.com/yuki_bg/items/96a1608aa3f3225386b6
-# https://developer.twitter.com/en/portal/apps/20214224/keys
-
-# ツイートできたかわからない
-# 文字数オーバー→日付別にツイート分ける？
-
 import urllib.request
 from bs4 import BeautifulSoup
 import datetime
@@ -13,16 +5,25 @@ import twitter
 import key
 
 def main():
+    # スクレイピング
     url = 'https://site3.sbisec.co.jp/ETGate/WPLETmgR001Control?&burl=search_foreign&cat1=foreign&dir=info&file=foreign_info200123_02.html'
     ipo_list = sbi_scraping(url)
-    
-    text_ls=[]
-    for i in range(1,len(ipo_list)):
-        text_ls.append(ipo_list[i][4]) #+'：'+ipo_list[i][0]+' ('+ipo_list[i][3]+')'
-        text_ls.append(ipo_list[i][1])
-        text_ls.append(ipo_list[i][2]+'\n')
-    text_ls.append(url+'\n')
-    print('\n'.join(text_ls))
+
+    # 取得した情報を整形
+    day_ls=[ipo_list[i][4] for i in range(1,len(ipo_list))]
+    day=sorted(set(day_ls), key=day_ls.index) # 順序をそのままに重複を削除
+    text_ls=[[i] for i in day]
+    for i in range(len(text_ls)):
+        for j in range(1,len(ipo_list)):
+            if text_ls[i][0] == ipo_list[j][4]:
+                text_ls[i].append('<' + ipo_list[j][1] + '>')
+                text_ls[i].append(ipo_list[j][2] + '\n')
+    """
+    for i in text_ls:
+        print('\n'.join(i))
+    """
+
+    # ツイート
     tweet(text_ls)
 
 def tweet(text_ls):
@@ -33,16 +34,15 @@ def tweet(text_ls):
         token_secret=key.token_secret
     )
     t = twitter.Twitter(auth=auth)
-
-    tweet = '\n'.join(text_ls)#改行は改行コードを入れる。
-    status=tweet #投稿するツイート
-    # print(t.statuses.update(status=status)) #Twitterに投稿
-    """
-    print("-------------------tweet_text-------------------")
-    print(tweet)
-    print("-------------------tweet_text-------------------")
-    print("tweeted!!!")
-    """
+    
+    tweet_id=None
+    for i in range(3):
+        tweet = '\n'.join(text_ls[i])
+        statusUpdate = t.statuses.update(status=tweet,in_reply_to_status_id=tweet_id) #Twitterに投稿
+        tweet_id = statusUpdate['id_str']
+        # print("id:", statusUpdate['user']['screen_name'])
+        # print("user_name:", statusUpdate['user']['name'])
+        print("tweet:", statusUpdate['text'])
 
 def sbi_scraping(url):
     ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) '\
@@ -52,6 +52,7 @@ def sbi_scraping(url):
     req = urllib.request.Request(url, headers={'User-Agent': ua})
     html = urllib.request.urlopen(req)
     soup = BeautifulSoup(html, "html.parser")
+    # soup = BeautifulSoup(open('外国株式・海外ETF｜SBI証券.html'), "html.parser")
     table = soup.find('table', attrs={'class': 'md-l-table-01'}) # テーブルを取得
     rows = table.find_all('tr')
     data=[[v.text for v in rows[0].find_all('th')]] # カラム名を取得
