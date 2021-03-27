@@ -1,3 +1,5 @@
+# coding: UTF-8
+
 import urllib.request
 from bs4 import BeautifulSoup
 import datetime
@@ -70,9 +72,14 @@ def sbi_scraping(url):
             else:
                 tmp.append(cell.get_text())
         # ソート用にdate型の上場予定日を追加
-        date_str = str(today.year)+ '年' + tmp[-1]
-        date_format = '%Y年%m月%d日'
-        dt_tm = datetime.datetime.strptime(date_str, date_format)
+        try:
+            date_str = str(today.year)+ '年' + tmp[-1]
+            date_format = '%Y年%m月%d日'
+            dt_tm = datetime.datetime.strptime(date_str, date_format)
+        except ValueError:
+            date_str = str(today.year)+ '年' + '12月31日'
+            date_format = '%Y年%m月%d日'
+            dt_tm = datetime.datetime.strptime(date_str, date_format)
         dt = datetime.date(dt_tm.year, dt_tm.month, dt_tm.day)
         tmp.append(dt)
         data.append(tmp)
