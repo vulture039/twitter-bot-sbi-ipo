@@ -6,6 +6,7 @@ import datetime
 import twitter
 import key
 import re
+import unicodedata
 
 def main():
     ipo_list = sbi_scraping('https://site3.sbisec.co.jp/ETGate/WPLETmgR001Control?&burl=search_foreign&cat1=foreign&dir=info&file=foreign_info200123_02.html')
@@ -14,6 +15,7 @@ def main():
 
     """
     for i in text_ls:
+        print('---')
         print('\n'.join(i))
     """
 
@@ -80,17 +82,31 @@ def sbi_scraping(url):
     return sorted_data
 
 def arrange_text(ipo_list):
-    day_ls=[ipo_list[i][1] for i in range(1,len(ipo_list))]
-    day=sorted(set(day_ls), key=day_ls.index) # 順序をそのままに日付の重複を削除
-    text_ls=[['【' + i + '】'] for i in day]
-
-    for i in range(len(text_ls)): # 日付別にまとめる
-        for j in range(1,len(ipo_list)):
-            if re.findall("(?<=【).+?(?=】)", text_ls[i][0])[0] == ipo_list[j][1]: # 【】以外の文字列で比較
-                text_ls[i].append('<' + ipo_list[j][2] + '>')
-                text_ls[i].append(ipo_list[j][3] + '\n')
+    
+    text_ls=[]    
+    for data in ipo_list[1:]:
+        tmp=[]
+        tmp.append('【' + data[1] + '】')
+        tmp.append('<' + data[2] + '>')
+        tmp.append(data[3]) # + '\n')
+        # ツイートを280bytes以内でまとめる
+        if len(text_ls) > 0 \
+            and text_ls[-1][0] == tmp[0] \
+            and (get_bytes(''.join(text_ls[-1])) + get_bytes(''.join(tmp))) <= 280:
+            text_ls[-1].extend(['\n' + tmp[1], tmp[2]])
+        else:
+            text_ls.append(tmp)
     
     return text_ls
+
+def get_bytes(text):
+    count = 0
+    for c in text:
+        if unicodedata.east_asian_width(c) in 'FWA':
+            count += 2
+        else:
+            count += 1
+    return count
 
 def tweet(text_ls):
     auth = twitter.OAuth(
